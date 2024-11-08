@@ -33,9 +33,25 @@ namespace CudaRasterizer
 			float* means3D,
 			float* viewmatrix,
 			float* projmatrix,
-			int W, int H,
+			const int W,
+			const int H,
 			float* pixel_u,
-			float* pixel_v
+			float* pixel_v,
+			float* pixel_z
+			);
+
+		static void pixel2world(
+			int P,
+			float* pixel_u,
+			float* pixel_v,
+			float* pixel_z,
+			float* viewmatrix,
+			float* inv_projmatrix,
+			const int W,
+			const int H,
+			float* world_x,
+			float* world_y,
+			float* world_z
 			);
 
 		static int forward(

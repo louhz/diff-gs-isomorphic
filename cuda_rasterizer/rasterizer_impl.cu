@@ -74,21 +74,58 @@ __global__ void checkpixel(int P,
 	const int W,
 	const int H,
 	float* pixel_u,
-	float* pixel_v
+	float* pixel_v,
+	float* pixel_z
 	)
 {
 	auto idx = cg::this_grid().thread_rank();
 	if (idx >= P)
 		return;
 
-	float2 pixel;
+	float3 pixel;
 	pixel_u[idx] = inpixel(idx, orig_points, viewmatrix, projmatrix, W,H,pixel).x;
 	pixel_v[idx] = inpixel(idx, orig_points, viewmatrix, projmatrix, W,H,pixel).y;
-
+	pixel_z[idx] = inpixel(idx, orig_points, viewmatrix, projmatrix, W,H,pixel).z;
 
 
 }
 
+__global__ void assign_point(
+	int P,
+	float* pixel_u,
+	float* pixel_v,
+	float* pixel_z,
+	float* viewmatrix,
+	float* inv_projmatrix,
+	const int W,
+	const int H,
+	float* world_position_x,
+	float* world_position_y,
+	float* world_position_z)
+{
+	auto idx = cg::this_grid().thread_rank();
+
+
+
+	if (idx >= P)
+		return;
+
+	float3 world_point;
+
+	world_position_x[idx] =  unproject_pixel(idx,inv_projmatrix,
+                  pixel_u, pixel_v, pixel_z,
+                  W, H,
+                  world_point).x;
+	world_position_y[idx] =  unproject_pixel(idx,inv_projmatrix,
+                  pixel_u, pixel_v, pixel_z,
+                  W, H,
+                  world_point).y;
+	world_position_z[idx] =  unproject_pixel(idx,inv_projmatrix,
+                  pixel_u, pixel_v, pixel_z,
+                  W, H,
+                  world_point).z;
+
+}
 
 
 
@@ -195,10 +232,11 @@ void CudaRasterizer::Rasterizer::projectPoint2D(
 	float* means3D,
 	float* viewmatrix,
 	float* projmatrix,
-	int W,
-	int H,
+	const int W,
+	const int H,
 	float* pixel_u,
-	float* pixel_v
+	float* pixel_v,
+	float* pixel_z
 	)
 {
 	checkpixel<< <(P + 255) / 256, 256 >> > (
@@ -206,11 +244,41 @@ void CudaRasterizer::Rasterizer::projectPoint2D(
 		means3D,
 		viewmatrix, projmatrix,
 		W, H,
-		pixel_u, pixel_v);
+		pixel_u, pixel_v, pixel_z);
 
 
 
 }
+
+
+void CudaRasterizer::Rasterizer::pixel2world(
+	int P,
+	float* pixel_u,
+	float* pixel_v,
+	float* pixel_z,
+	float* viewmatrix,
+	float* inv_projmatrix,
+	const int W,
+	const int H,
+	float* world_position_x,
+	float* world_position_y,
+	float* world_position_z)
+{
+	assign_point<< <(P + 255) / 256, 256 >> > (
+		P,
+		pixel_u,
+		pixel_v,
+		pixel_z,
+		viewmatrix,
+		inv_projmatrix,
+		W, H,
+		world_position_x,
+		world_position_y,
+		world_position_z);
+	
+}
+
+
 
 CudaRasterizer::GeometryState CudaRasterizer::GeometryState::fromChunk(char*& chunk, size_t P)
 {

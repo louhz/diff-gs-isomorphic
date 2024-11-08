@@ -244,19 +244,53 @@ torch::Tensor markVisible(
 }
 
 
-std::tuple<torch::Tensor, torch::Tensor>
+std::tuple<torch::Tensor, torch::Tensor,torch::Tensor>
+pixel2world(
+		torch::Tensor& pixel_u,
+		torch::Tensor& pixel_v,
+		torch::Tensor& pixel_z,
+		torch::Tensor& viewmatrix,
+		torch::Tensor& inv_projmatrix,
+		const int W,
+		const int H)
+{ 
+  const int P = pixel_u.size(0);
+  
+  torch::Tensor world_position_x = torch::zeros({P}, pixel_u.options().dtype(at::kFloat));
+  torch::Tensor world_position_y = torch::zeros({P}, pixel_u.options().dtype(at::kFloat));
+  torch::Tensor world_position_z = torch::zeros({P}, pixel_u.options().dtype(at::kFloat));
+  if(P != 0)
+  {
+	CudaRasterizer::Rasterizer::pixel2world(P,
+		pixel_u.contiguous().data<float>(),
+		pixel_v.contiguous().data<float>(),
+		pixel_z.contiguous().data<float>(),
+		viewmatrix.contiguous().data<float>(),
+		inv_projmatrix.contiguous().data<float>(),
+		W,H,
+		world_position_x.contiguous().data<float>(),
+		world_position_y.contiguous().data<float>(),
+		world_position_z.contiguous().data<float>()
+		);
+  }
+
+  return std::make_tuple(world_position_x, world_position_y, world_position_z);
+}
+
+
+std::tuple<torch::Tensor, torch::Tensor,torch::Tensor>
 projectPoint2D(
 		torch::Tensor& means3D,
 		torch::Tensor& viewmatrix,
 		torch::Tensor& projmatrix,
-		int W,
-		int H)
+		const int W,
+		const int H)
 { 
   const int P = means3D.size(0);
   
   torch::Tensor pixel_u = torch::zeros({P}, means3D.options().dtype(at::kFloat));
   torch::Tensor pixel_v = torch::zeros({P}, means3D.options().dtype(at::kFloat));
- 
+  torch::Tensor pixel_z = torch::zeros({P}, means3D.options().dtype(at::kFloat));
   if(P != 0)
   {
 	CudaRasterizer::Rasterizer::projectPoint2D(P,
@@ -265,11 +299,11 @@ projectPoint2D(
 		projmatrix.contiguous().data<float>(),
 		W,H,
 		pixel_u.contiguous().data<float>(),
-		pixel_v.contiguous().data<float>()
-
+		pixel_v.contiguous().data<float>(),
+		pixel_z.contiguous().data<float>()
 		);
 	
   }
 
-  return std::make_tuple(pixel_u, pixel_v);
+  return std::make_tuple(pixel_u, pixel_v, pixel_z);
 }

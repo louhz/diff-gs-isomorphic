@@ -179,13 +179,13 @@ __forceinline__ __device__ bool in_frustum(int idx,
 
 
 
-__forceinline__ __device__ float2 inpixel(int idx,
+__forceinline__ __device__ float3 inpixel(int idx,
 	const float* orig_points,
 	const float* viewmatrix,
 	const float* projmatrix,
 	const int W,
 	const int H,
-	float2& pixel
+	float3& pixel
 	)
 {
 	float3 p_orig = { orig_points[3 * idx], orig_points[3 * idx + 1], orig_points[3 * idx + 2] };
@@ -194,10 +194,44 @@ __forceinline__ __device__ float2 inpixel(int idx,
 	float4 p_hom = transformPoint4x4(p_orig, projmatrix);
 	float p_w = 1.0f / (p_hom.w + 0.0000001f);
 	float3 p_proj = { p_hom.x * p_w, p_hom.y * p_w, p_hom.z * p_w };
-	pixel = { ndc2Pix(p_proj.x, W), ndc2Pix(p_proj.y, H) };
+	pixel = { ndc2Pix(p_proj.x, W), ndc2Pix(p_proj.y, H), p_proj.z };
 
 
 	return pixel;
+}
+
+__forceinline__ __device__ float3 unproject_pixel(int idx,float* invProjMatrix,
+               float* pixel_u, float*  pixel_v, float* pixel_z,
+               const int W, const int H,
+               float3& world_point
+			   )
+{
+    // Step 1: Convert screen coordinates to Normalized Device Coordinates (NDC)
+
+	float3 pixel_point= {pixel_u[idx], pixel_v[idx], pixel_z[idx]};
+    float xNDC = (2.0f * pixel_point.x ) / W - 1.0f;
+    float yNDC =  1.0f - (2.0f *  pixel_point.y) / H;  // Invert Y for NDC space
+    float zNDC =  pixel_point.z;
+
+    // Step 2: Create clip space coordinate
+    float3 clipCoords = { xNDC, yNDC, zNDC};
+
+    // Step 3: Transform clip coordinates to eye space coordinates
+
+    float4 eyeCoords=transformPoint4x4(clipCoords, invProjMatrix);
+
+    // Step 4: Perform perspective divide to get normalized eye coordinates
+    if (eyeCoords.w != 0.0f)
+    {
+        eyeCoords.x /= eyeCoords.w;
+		eyeCoords.y /= eyeCoords.w;
+		eyeCoords.z /= eyeCoords.w;
+    }
+    eyeCoords.w = 1.0f;
+
+	world_point = {eyeCoords.x, eyeCoords.y, eyeCoords.z};
+	return world_point;
+
 }
 
 

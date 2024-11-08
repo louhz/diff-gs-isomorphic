@@ -175,15 +175,31 @@ class GaussianRasterizer(nn.Module):
         # Mark visible points (based on frustum culling for camera) with a boolean 
         with torch.no_grad():
             raster_settings = self.raster_settings
-            pixel_u,pixel_v = _C.project_point_2d(
+            pixel_u,pixel_v,pixel_z = _C.project_point_2d(
                 positions,
                 raster_settings.viewmatrix,
                 raster_settings.projmatrix,
                 raster_settings.image_width,
                 raster_settings.image_height)
             
-        return pixel_u,pixel_v
-
+        return pixel_u,pixel_v,pixel_z
+    
+    def pixel_2_world(self, pixel_u, pixel_v, pixel_z):
+        # pixel2world
+        with torch.no_grad():
+            raster_settings = self.raster_settings
+            inv_projmatrix = torch.linalg.inv(raster_settings.projmatrix)
+            world_x, world_y, world_z = _C.project_pixel_2world(
+                pixel_u,
+                pixel_v,
+                pixel_z,
+                raster_settings.viewmatrix,
+                inv_projmatrix,
+                raster_settings.image_width,
+                raster_settings.image_height)
+        
+        return world_x, world_y, world_z
+    
     def forward(self, means3D, means2D, opacities, shs = None, colors_precomp = None, scales = None, rotations = None, cov3D_precomp = None):
         
         raster_settings = self.raster_settings

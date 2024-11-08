@@ -72,7 +72,7 @@ torch::Tensor markVisible(
 
 
 
-std::tuple<torch::Tensor, torch::Tensor> 
+std::tuple<torch::Tensor, torch::Tensor,torch::Tensor> 
  projectPoint2D(
 		torch::Tensor& means3D,
 		torch::Tensor& viewmatrix,
@@ -80,3 +80,14 @@ std::tuple<torch::Tensor, torch::Tensor>
 		int W,
 		int H);
 
+
+
+std::tuple<torch::Tensor, torch::Tensor,torch::Tensor>
+ pixel2world(
+		torch::Tensor& pixel_u,
+		torch::Tensor& pixel_v,
+		torch::Tensor& pixel_z,
+		torch::Tensor& viewmatrix,
+		torch::Tensor& inv_projmatrix,
+		int W,
+		int H);
